@@ -36,9 +36,14 @@ def raw_get_content(link):
         return None
 
 # Collect Title Links
-current_link = given_url
-while current_link:
-    sleep(1)
+startnumber = int(input("Page number to begin with: "))
+if startnumber == 1:
+    current_link = given_url
+else:
+    current_link = given_url + '/page/' + str(startnumber)
+endnumber = int(input("Page number to end with: "))
+for i in range(endnumber - startnumber + 1):
+    #sleep(1)
     print("Scraping: %s" % current_link)
     raw_html = raw_get_content(current_link)
     soup = BeautifulSoup(raw_html, 'html.parser')
@@ -64,10 +69,9 @@ yandex_disk = "https://yadi.sk"
 rows = []
 # Scraping Stem webpage
 for link in title_links:
-    sleep(.5)
     new_row = {}
     # We don't want to send to many requests to the site, otherwise, we get an error.
-    sleep(1)
+    #sleep(1)
     print("Scraping: %s" % (link))
     raw_html = raw_get_content(link)
     soup = BeautifulSoup(raw_html, 'html.parser')
@@ -76,7 +80,7 @@ for link in title_links:
     new_row["Remixpacks ID"] = link[link.rfind("/") + 1:]
 
     # Similarly, the Yandex ID is the last part of the url, directly after the last backslash
-    download_link = str(soup.find("form", target="_blank")['action'])
+    download_link = soup.findAll("a", {"class": "aboutstems blackcomp borderpx marginbottom20 downloadstems"})[0].attrs['href']
     if yandex_disk in download_link:
         new_row["Yandex ID/Download"] = download_link[download_link.rfind("/") + 1:]
     else:
@@ -124,12 +128,19 @@ for link in title_links:
     # Find Related Songs
     # Might be useful for making a graphical representation in a later iteration?
     new_row["Related Songs"] = []
-    similar = soup.find("div", class_="similar-posts").children
+    similar = soup.find("div", class_="yarpp-related").children
     for sim in similar:
         if isinstance(sim, NavigableString):
-            continue
-        remixpacks_link = str(sim.contents[0]["href"])[:-1]
-        new_row["Related Songs"].append(remixpacks_link[remixpacks_link.rfind("/")+1:])
+                    continue
+        for part in sim.contents:
+            if isinstance(part, str):
+                continue
+            link = part.next['href'][:-1]
+            if "load" in link:
+                #print(link)
+                if isinstance(sim, NavigableString):
+                    continue
+                new_row["Related Songs"].append(link[link.rfind("/")+1:])
     rows.append(new_row)
 dataframe = pd.DataFrame(rows)
 dataframe.to_csv("song_data.csv")
